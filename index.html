@@ -1,21 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Mothing Test</title>
-</head>
 <body>
-  <div id="test-output">Waiting...</div>
+  <h1>iNaturalist Observation Stats</h1>
+
+  <div id="deer-park" class="location-box">
+    <h2>📍 Deer Park Prairie</h2>
+    <p>Loading data...</p>
+  </div>
 
   <script>
-  fetch("https://api.inaturalist.org/v1/observations?place_id=189476&per_page=1")
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById("test-output").innerText = "Fetch succeeded!";
-    })
-    .catch(err => {
-      document.getElementById("test-output").innerText = "Fetch failed!";
-      console.error(err);
-    });
+    // JS will go here in the next step
   </script>
 </body>
-</html>
