@@ -1,9 +1,16 @@
 <body>
   <h1>iNaturalist Observation Stats</h1>
 
-  <div id="deer-park" class="location-box">
-    <h2>📍 Deer Park Prairie</h2>
-    <p>Loading data...</p>
+    <div id="stats-container" style="display: flex; gap: 2rem;">
+    <div id="deer-park" class="location-box" style="flex: 1;">
+      <h2>📍 Deer Park Prairie</h2>
+      <p>Loading data...</p>
+    </div>
+
+    <div id="exploration-green" class="location-box" style="flex: 1;">
+      <h2>📍 Exploration Green</h2>
+      <p>Loading data...</p>
+    </div>
   </div>
 
   <script>
@@ -27,6 +34,28 @@
     }
   }
 
+  async function loadExplorationGreenObservers() {
+    const url = "https://api.inaturalist.org/v1/observations/observers?place_id=120329";
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const container = document.getElementById("exploration-green");
+      container.innerHTML = "<h2>📍 Exploration Green</h2><ul>";
+
+      data.results.forEach(observer => {
+        container.innerHTML += `<li>${observer.user.login} — ${observer.observation_count} observations</li>`;
+      });
+
+      container.innerHTML += "</ul>";
+    } catch (error) {
+      console.error("Fetch failed:", error);
+      document.getElementById("exploration-green").innerHTML += `<p>Failed to load data.</p>`;
+    }
+  }
+
+  // Run both
   loadDeerParkObservers();
-  </script>
+  loadExplorationGreenObservers();
+</script>
 </body>
