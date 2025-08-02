@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mothing Test</title>
+</head>
+<body>
+  <div id="test-output">Waiting...</div>
+
+  <script>
+  fetch("https://api.inaturalist.org/v1/observations?place_id=189476&per_page=1")
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("test-output").innerText = "Fetch succeeded!";
+    })
+    .catch(err => {
+      document.getElementById("test-output").innerText = "Fetch failed!";
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
