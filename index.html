@@ -7,6 +7,26 @@
   </div>
 
   <script>
-    // JS will go here in the next step
+     async function loadDeerParkObservers() {
+    const url = "https://api.inaturalist.org/v1/observations/observers?place_id=189476";
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const container = document.getElementById("deer-park");
+      container.innerHTML = "<h2>📍 Deer Park Prairie</h2><ul>";
+
+      data.results.forEach(observer => {
+        container.innerHTML += `<li>${observer.user.login} — ${observer.observation_count} observations</li>`;
+      });
+
+      container.innerHTML += "</ul>";
+    } catch (error) {
+      console.error("Fetch failed:", error);
+      document.getElementById("deer-park").innerHTML += `<p>Failed to load data.</p>`;
+    }
+  }
+
+  loadDeerParkObservers();
   </script>
 </body>
