@@ -25,57 +25,77 @@
   <!-- Script 1: NMW at DPP insect summary | 7-26-25 -->
   <script>
     async function loadEveningInsectObservers(placeId, date, containerId, max = 5) {
-      const url = `https://api.inaturalist.org/v1/observations?place_id=${placeId}&d1=${date}&d2=${date}&taxon_id=47158&per_page=200`;
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
+  const perPage = 200;
+  let page = 1;
+  let allResults = [];
+  let totalResults = null;
 
-        const evening = data.results.filter(obs => {
-          const hour = new Date(obs.time_observed_at).getHours();
-          return hour >= 19 && hour < 24;
-        });
+  try {
+    while (true) {
+      const url = `https://api.inaturalist.org/v1/observations?place_id=${placeId}&d1=${date}&d2=${date}&taxon_id=47158&per_page=${perPage}&page=${page}`;
+      const response = await fetch(url);
+      const data = await response.json();
 
-        const totalObservations = evening.length;
-
-        const speciesSet = new Set(
-          evening
-            .filter(obs => obs.taxon && obs.taxon.rank === "species")
-            .map(obs => obs.taxon.name)
-        );
-        const uniqueSpecies = speciesSet.size;
-
-        const observerCounts = {};
-        evening.forEach(obs => {
-          const user = obs.user?.login || "unknown";
-          observerCounts[user] = (observerCounts[user] || 0) + 1;
-        });
-
-        const sorted = Object.entries(observerCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, max);
-
-        const container = document.getElementById(containerId);
-        if (totalObservations === 0) {
-          container.innerHTML = `<p>No insect observations recorded between 7pm–12am on ${date}.</p>`;
-          return;
-        }
-
-        container.innerHTML = `
-          <p><strong>${totalObservations}</strong> insect observations between 7pm–12am on ${date}</p>
-          <p><strong>${uniqueSpecies}</strong> unique species observed</p>
-          <p>Top ${max} observers:</p>
-          <ul>
-            ${sorted.map(([user, count]) => `<li>${user} — ${count} observations</li>`).join("")}
-          </ul>
-        `;
-      } catch (err) {
-        console.error("Evening stats failed:", err);
-        const container = document.getElementById(containerId);
-        if (container) {
-          container.innerHTML = "<p>Failed to load data.</p>";
-        }
+      if (totalResults === null) {
+        totalResults = data.total_results;
       }
+
+      allResults = allResults.concat(data.results);
+
+      if (allResults.length >= totalResults || data.results.length === 0) {
+        break;
+      }
+
+      page++;
     }
+
+    // Filter to observations between 7pm–12am
+    const evening = allResults.filter(obs => {
+      const hour = new Date(obs.time_observed_at).getHours();
+      return hour >= 19 && hour < 24;
+    });
+
+    const totalObservations = evening.length;
+
+    const speciesSet = new Set(
+      evening
+        .filter(obs => obs.taxon && obs.taxon.rank === "species")
+        .map(obs => obs.taxon.name)
+    );
+    const uniqueSpecies = speciesSet.size;
+
+    const observerCounts = {};
+    evening.forEach(obs => {
+      const user = obs.user?.login || "unknown";
+      observerCounts[user] = (observerCounts[user] || 0) + 1;
+    });
+
+    const sorted = Object.entries(observerCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, max);
+
+    const container = document.getElementById(containerId);
+    if (totalObservations === 0) {
+      container.innerHTML += `<p>No insect observations recorded between 7pm–12am on ${date}.</p>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <p><strong>${totalObservations}</strong> insect observations between 7pm–12am on ${date}</p>
+      <p><strong>${uniqueSpecies}</strong> unique species observed</p>
+      <p>Top ${max} observers:</p>
+      <ul>
+        ${sorted.map(([user, count]) => `<li>${user} — ${count} observations</li>`).join("")}
+      </ul>
+    `;
+  } catch (err) {
+    console.error("Evening stats failed:", err);
+    const container = document.getElementById(containerId);
+    if (container) {
+      container.innerHTML = "<p>Failed to load data.</p>";
+    }
+  }
+}
 
     // Run evening summary
     loadEveningInsectObservers(189476, "2025-07-26", "dpp-evening-list", 5);
