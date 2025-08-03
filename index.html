@@ -5,7 +5,7 @@
     <!-- Evening event summary -->
     <div id="dpp-evening-list" style="margin-top: 2rem;">
         <h2>🌙 National Moth Week at DPP</h2>
-        <p>Loading evening insect stats...</p>
+        <div id="evening-summary">Loading evening insect stats...</div>
   </div>
     
     <!-- Overall summaries -->
@@ -74,15 +74,63 @@
       .sort((a, b) => b[1] - a[1])
       .slice(0, max);
 
-    const container = document.getElementById(containerId);
+// Track how many unique observers saw each species
+const speciesObservers = {};
+
+evening.forEach(obs => {
+  const species = obs.taxon?.name;
+  const user = obs.user?.login;
+  if (species && obs.taxon?.rank === "species" && user) {
+    if (!speciesObservers[species]) {
+      speciesObservers[species] = new Set();
+    }
+    speciesObservers[species].add(user);
+  }
+});
+
+const rankedSpecies = Object.entries(speciesObservers)
+  .map(([name, userSet]) => [name, userSet.size])
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 5); // top 5 species by distinct observer count
+
+// Count unique species observed per user
+const speciesPerUser = {};
+
+evening.forEach(obs => {
+  const user = obs.user?.login || "unknown";
+  const taxon = obs.taxon?.name;
+
+  if (obs.taxon && obs.taxon.rank === "species") {
+    if (!speciesPerUser[user]) {
+      speciesPerUser[user] = new Set();
+    }
+    speciesPerUser[user].add(taxon);
+  }
+});
+
+const speciesByUser = Object.entries(speciesPerUser)
+  .map(([user, speciesSet]) => [user, speciesSet.size])
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, max);
+
+    const container = document.getElementById("evening-summary");
     if (totalObservations === 0) {
       container.innerHTML += `<p>No insect observations recorded between 7pm–12am on ${date}.</p>`;
       return;
     }
 
     container.innerHTML = `
-      <p><strong>${totalObservations}</strong> insect observations between 7pm–12am on ${date}</p>
-      <p><strong>${uniqueSpecies}</strong> unique species observed</p>
+      
+      
+      <p><strong>${totalObservations}</strong> insect observations<br><strong>${uniqueSpecies}</strong> unique species observed<br> between 7pm–12am on <strong>${date}</strong></p>
+      <p>Top 5 species by number of observers:</p>
+      <ul>
+        ${rankedSpecies.map(([species, count]) => `<li>${species} — observed by ${count} people</li>`).join("")}
+      </ul>
+      <p>Top ${max} observers by species observed:</p>
+      <ul>
+        ${speciesByUser.map(([user, count]) => `<li>${user} — ${count} species</li>`).join("")}
+      </ul>
       <p>Top ${max} observers:</p>
       <ul>
         ${sorted.map(([user, count]) => `<li>${user} — ${count} observations</li>`).join("")}
@@ -96,6 +144,8 @@
     }
   }
 }
+
+
 
     // Run evening summary
     loadEveningInsectObservers(189476, "2025-07-26", "dpp-evening-list", 5);
