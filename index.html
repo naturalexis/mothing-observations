@@ -1,61 +1,76 @@
 <body>
   <h1>iNaturalist Observation Stats</h1>
 
-    <div id="stats-container" style="display: flex; gap: 2rem;">
+  <div id="stats-container" style="display: flex; gap: 2rem;">
     <div id="deer-park" class="location-box" style="flex: 1;">
       <h2>📍 Deer Park Prairie</h2>
-      <p>Loading data...</p>
+      <p id="deer-stats">Loading data...</p>
+      <ul id="deer-list"></ul>
     </div>
 
     <div id="exploration-green" class="location-box" style="flex: 1;">
       <h2>📍 Exploration Green</h2>
-      <p>Loading data...</p>
+      <p id="eg-stats">Loading data...</p>
+      <ul id="eg-list"></ul>
     </div>
   </div>
 
   <script>
-     async function loadDeerParkObservers() {
-    const url = "https://api.inaturalist.org/v1/observations/observers?place_id=189476";
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
+ async function loadObservationStats(placeId, statsId) {
+  const url = `https://api.inaturalist.org/v1/observations?place_id=${placeId}`;
+  try {
+    console.log(`Fetching stats from: ${url}`);
+    const response = await fetch(url);
 
-      const container = document.getElementById("deer-park");
-      container.innerHTML = "<h2>📍 Deer Park Prairie</h2><ul>";
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
 
-      data.results.forEach(observer => {
-        container.innerHTML += `<li>${observer.user.login} — ${observer.observation_count} observations</li>`;
-      });
+    const data = await response.json();
+    console.log("Received stats data:", data);
 
-      container.innerHTML += "</ul>";
-    } catch (error) {
-      console.error("Fetch failed:", error);
-      document.getElementById("deer-park").innerHTML += `<p>Failed to load data.</p>`;
+    const statsEl = document.getElementById(statsId);
+    if (!statsEl) {
+      console.warn(`Element with ID '${statsId}' not found`);
+      return;
+    }
+
+    statsEl.textContent = `${data.total_results.toLocaleString()} total observations`;
+  } catch (error) {
+    console.error("Stats fetch failed:", error);
+    const statsEl = document.getElementById(statsId);
+    if (statsEl) {
+      statsEl.textContent = "Failed to load observation count.";
     }
   }
+}
 
-  async function loadExplorationGreenObservers() {
-    const url = "https://api.inaturalist.org/v1/observations/observers?place_id=120329";
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
 
-      const container = document.getElementById("exploration-green");
-      container.innerHTML = "<h2>📍 Exploration Green</h2><ul>";
+    async function loadObservers(placeId, listId) {
+      const url = `https://api.inaturalist.org/v1/observations/observers?place_id=${placeId}`;
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
 
-      data.results.forEach(observer => {
-        container.innerHTML += `<li>${observer.user.login} — ${observer.observation_count} observations</li>`;
-      });
+        const listEl = document.getElementById(listId);
+        listEl.innerHTML = "";
 
-      container.innerHTML += "</ul>";
-    } catch (error) {
-      console.error("Fetch failed:", error);
-      document.getElementById("exploration-green").innerHTML += `<p>Failed to load data.</p>`;
+        data.results.forEach(observer => {
+          const li = document.createElement("li");
+          li.textContent = `${observer.user.login} — ${observer.observation_count} observations`;
+          listEl.appendChild(li);
+        });
+      } catch (error) {
+        console.error("Fetch failed:", error);
+        document.getElementById(listId).innerHTML = "<li>Failed to load data.</li>";
+      }
     }
-  }
 
-  // Run both
-  loadDeerParkObservers();
-  loadExplorationGreenObservers();
-</script>
+    // Run all
+    loadObservationStats(189476, "deer-stats");
+    loadObservers(189476, "deer-list");
+
+    loadObservationStats(120329, "eg-stats");
+    loadObservers(120329, "eg-list");
+  </script>
 </body>
