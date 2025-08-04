@@ -1,198 +1,237 @@
 <body>
-  <h1>iNaturalist Observation Stats</h1>
 
-  <div id="stats-container" style="display: flex; gap: 2rem;">
-    <!-- Evening event summary -->
-    <div id="dpp-evening-list" style="margin-top: 2rem;">
-        <h2>🌙 National Moth Week at DPP</h2>
-        <div id="evening-summary">Loading evening insect stats...</div>
-  </div>
-    
-    <!-- Overall summaries -->
-    <div id="deer-park" class="location-box" style="flex: 1;">
-      <h2>📍 Deer Park Prairie</h2>
-      <p id="deer-stats">Loading data...</p>
-      <ul id="deer-list"></ul>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+            color: #333;
+        }
+
+        #stats-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .location-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        ul {
+            padding-left: 1.2rem;
+        }
+
+        li {
+            margin-bottom: 0.3rem;
+        }
+    </style>
+
+    <h1>iNaturalist Observation Stats</h1>
+
+    <div id="stats-container">
+        <!-- Evening event summary -->
+        <div id="dpp-evening-list">
+            <h2>🌙 National Moth Week at Deer Park Prairie</h2>
+            <div id="evening-summary">Loading evening insect stats...</div>
+        </div>
+
+        <!-- Overall summaries -->
+        <div id="deer-park" class="location-box">
+            <h2>📍 Deer Park Prairie</h2>
+            <p id="deer-stats">Loading data...</p>
+            <ul id="deer-list"></ul>
+        </div>
+
+        <div id="exploration-green" class="location-box">
+            <h2>📍 Exploration Green</h2>
+            <p id="eg-stats">Loading data...</p>
+            <ul id="eg-list"></ul>
+        </div>
     </div>
 
-    <div id="exploration-green" class="location-box" style="flex: 1;">
-      <h2>📍 Exploration Green</h2>
-      <p id="eg-stats">Loading data...</p>
-      <ul id="eg-list"></ul>
-    </div>
-  </div>
+    <!-- Script 1: NMW at DPP insect summary | 7-26-25 -->
+    <script>
+        async function loadEveningInsectObservers(placeId, date, containerId, max = 5) {
+            const perPage = 200;
+            let page = 1;
+            let allResults = [];
+            let totalResults = null;
 
-  <!-- Script 1: NMW at DPP insect summary | 7-26-25 -->
-  <script>
-    async function loadEveningInsectObservers(placeId, date, containerId, max = 5) {
-  const perPage = 200;
-  let page = 1;
-  let allResults = [];
-  let totalResults = null;
+            try {
+                while (true) {
+                    const url = `https://api.inaturalist.org/v1/observations?place_id=${placeId}&d1=${date}&d2=${date}&taxon_id=47158&per_page=${perPage}&page=${page}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
 
-  try {
-    while (true) {
-      const url = `https://api.inaturalist.org/v1/observations?place_id=${placeId}&d1=${date}&d2=${date}&taxon_id=47158&per_page=${perPage}&page=${page}`;
-      const response = await fetch(url);
-      const data = await response.json();
+                    if (totalResults === null) {
+                        totalResults = data.total_results;
+                    }
 
-      if (totalResults === null) {
-        totalResults = data.total_results;
-      }
+                    allResults = allResults.concat(data.results);
 
-      allResults = allResults.concat(data.results);
+                    if (allResults.length >= totalResults || data.results.length === 0) {
+                        break;
+                    }
 
-      if (allResults.length >= totalResults || data.results.length === 0) {
-        break;
-      }
+                    page++;
+                }
 
-      page++;
-    }
+                // Filter to observations between 7pm–12am
+                const evening = allResults.filter(obs => {
+                    const hour = new Date(obs.time_observed_at).getHours();
+                    return hour >= 19 && hour < 24;
+                });
 
-    // Filter to observations between 7pm–12am
-    const evening = allResults.filter(obs => {
-      const hour = new Date(obs.time_observed_at).getHours();
-      return hour >= 19 && hour < 24;
-    });
+                const totalObservations = evening.length;
 
-    const totalObservations = evening.length;
+                const speciesSet = new Set(
+                    evening
+                        .filter(obs => obs.taxon && obs.taxon.rank === "species")
+                        .map(obs => obs.taxon.name)
+                );
+                const uniqueSpecies = speciesSet.size;
 
-    const speciesSet = new Set(
-      evening
-        .filter(obs => obs.taxon && obs.taxon.rank === "species")
-        .map(obs => obs.taxon.name)
-    );
-    const uniqueSpecies = speciesSet.size;
+                const observerCounts = {};
+                evening.forEach(obs => {
+                    const user = obs.user?.login || "unknown";
+                    observerCounts[user] = (observerCounts[user] || 0) + 1;
+                });
 
-    const observerCounts = {};
-    evening.forEach(obs => {
-      const user = obs.user?.login || "unknown";
-      observerCounts[user] = (observerCounts[user] || 0) + 1;
-    });
+                const sorted = Object.entries(observerCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, max);
 
-    const sorted = Object.entries(observerCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, max);
+                // Track how many unique observers saw each species
+                const speciesObservers = {};
 
-// Track how many unique observers saw each species
-const speciesObservers = {};
+                evening.forEach(obs => {
+                    if (obs.taxon && obs.taxon.rank === "species") {
+                        const speciesKey = obs.taxon.id + "|" + obs.taxon.name;
+                        const user = obs.user?.login;
+                        if (user) {
+                            if (!speciesObservers[speciesKey]) {
+                                speciesObservers[speciesKey] = new Set();
+                            }
+                            speciesObservers[speciesKey].add(user);
+                        }
+                    }
+                });
 
-evening.forEach(obs => {
-  const species = obs.taxon?.name;
-  const user = obs.user?.login;
-  if (species && obs.taxon?.rank === "species" && user) {
-    if (!speciesObservers[species]) {
-      speciesObservers[species] = new Set();
-    }
-    speciesObservers[species].add(user);
-  }
-});
+                const rankedSpecies = Object.entries(speciesObservers)
+                    .map(([key, userSet]) => {
+                        const [id, name] = key.split("|");
+                        return { id, name, count: userSet.size };
+                    })
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 5); // top 5 species by distinct observer count
 
-const rankedSpecies = Object.entries(speciesObservers)
-  .map(([name, userSet]) => [name, userSet.size])
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 5); // top 5 species by distinct observer count
+                // Count unique species observed per user
+                const speciesPerUser = {};
 
-// Count unique species observed per user
-const speciesPerUser = {};
+                evening.forEach(obs => {
+                    const user = obs.user?.login || "unknown";
+                    const taxon = obs.taxon?.name;
 
-evening.forEach(obs => {
-  const user = obs.user?.login || "unknown";
-  const taxon = obs.taxon?.name;
+                    if (obs.taxon && obs.taxon.rank === "species") {
+                        if (!speciesPerUser[user]) {
+                            speciesPerUser[user] = new Set();
+                        }
+                        speciesPerUser[user].add(taxon);
+                    }
+                });
 
-  if (obs.taxon && obs.taxon.rank === "species") {
-    if (!speciesPerUser[user]) {
-      speciesPerUser[user] = new Set();
-    }
-    speciesPerUser[user].add(taxon);
-  }
-});
+                const speciesByUser = Object.entries(speciesPerUser)
+                    .map(([user, speciesSet]) => [user, speciesSet.size])
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, max);
 
-const speciesByUser = Object.entries(speciesPerUser)
-  .map(([user, speciesSet]) => [user, speciesSet.size])
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, max);
+                const container = document.getElementById("evening-summary");
+                if (totalObservations === 0) {
+                    container.innerHTML += `<p>No insect observations recorded between 7pm–12am on ${date}.</p>`;
+                    return;
+                }
 
-    const container = document.getElementById("evening-summary");
-    if (totalObservations === 0) {
-      container.innerHTML += `<p>No insect observations recorded between 7pm–12am on ${date}.</p>`;
-      return;
-    }
-
-    container.innerHTML = `
+                container.innerHTML = `
       
       
       <p><strong>${totalObservations}</strong> insect observations<br><strong>${uniqueSpecies}</strong> unique species observed<br> between 7pm–12am on <strong>${date}</strong></p>
-      <p>Top 5 species by number of observers:</p>
+      <p>Top 10 species by number of observers:</p>
       <ul>
-        ${rankedSpecies.map(([species, count]) => `<li>${species} — observed by ${count} people</li>`).join("")}
+        ${rankedSpecies.map(s =>
+            `<li>
+                <i><a href="https://www.inaturalist.org/taxa/${s.id}" target="_blank">${s.name}</a></i> — observed by ${s.count} people
+            </li>`
+        ).join("")}
       </ul>
-      <p>Top ${max} observers by species observed:</p>
+      
+      <p>Top ${max} observers of ${totalObservations} observations:</p>
       <ul>
-        ${speciesByUser.map(([user, count]) => `<li>${user} — ${count} species</li>`).join("")}
+        ${sorted.map(([user, count]) => `<li>${count} | ${user}</li>`).join("")}
       </ul>
-      <p>Top ${max} observers:</p>
+
+      <p>Top ${max} observers of ${uniqueSpecies} total species:</p>
       <ul>
-        ${sorted.map(([user, count]) => `<li>${user} — ${count} observations</li>`).join("")}
+        ${speciesByUser.map(([user, count]) => `<li>${count} | ${user}</li>`).join("")}
       </ul>
     `;
-  } catch (err) {
-    console.error("Evening stats failed:", err);
-    const container = document.getElementById(containerId);
-    if (container) {
-      container.innerHTML = "<p>Failed to load data.</p>";
-    }
-  }
-}
+            } catch (err) {
+                console.error("Evening stats failed:", err);
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.innerHTML = "<p>Failed to load data.</p>";
+                }
+            }
+        }
 
 
 
-    // Run evening summary
-    loadEveningInsectObservers(189476, "2025-07-26", "dpp-evening-list", 5);
-  </script>
-  
-  
-  <!-- Script 2: Standard stats and observers -->
-  <script>
-    async function loadObservationStats(placeId, statsId) {
-      const url = `https://api.inaturalist.org/v1/observations?place_id=${placeId}`;
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-        const data = await response.json();
-        const statsEl = document.getElementById(statsId);
-        if (statsEl) statsEl.textContent = `${data.total_results.toLocaleString()} total observations`;
-      } catch (error) {
-        console.error("Stats fetch failed:", error);
-        const statsEl = document.getElementById(statsId);
-        if (statsEl) statsEl.textContent = "Failed to load observation count.";
-      }
-    }
+        // Run evening summary
+        loadEveningInsectObservers(189476, "2025-07-26", "dpp-evening-list", 5);
+    </script>
 
-    async function loadObservers(placeId, listId) {
-      const url = `https://api.inaturalist.org/v1/observations/observers?place_id=${placeId}`;
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        const listEl = document.getElementById(listId);
-        listEl.innerHTML = "";
-        data.results.forEach(observer => {
-          const li = document.createElement("li");
-          li.textContent = `${observer.user.login} — ${observer.observation_count} observations`;
-          listEl.appendChild(li);
-        });
-      } catch (error) {
-        console.error("Observer fetch failed:", error);
-        document.getElementById(listId).innerHTML = "<li>Failed to load data.</li>";
-      }
-    }
 
-    // Run standard calls
-    loadObservationStats(189476, "deer-stats");
-    loadObservers(189476, "deer-list");
+    <!-- Script 2: Standard stats and observers -->
+    <script>
+        async function loadObservationStats(placeId, statsId) {
+            const url = `https://api.inaturalist.org/v1/observations?place_id=${placeId}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                const data = await response.json();
+                const statsEl = document.getElementById(statsId);
+                if (statsEl) statsEl.textContent = `${data.total_results.toLocaleString()} total observations`;
+            } catch (error) {
+                console.error("Stats fetch failed:", error);
+                const statsEl = document.getElementById(statsId);
+                if (statsEl) statsEl.textContent = "Failed to load observation count.";
+            }
+        }
 
-    loadObservationStats(120329, "eg-stats");
-    loadObservers(120329, "eg-list");
-  </script>
+        async function loadObservers(placeId, listId) {
+            const url = `https://api.inaturalist.org/v1/observations/observers?place_id=${placeId}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                const listEl = document.getElementById(listId);
+                listEl.innerHTML = "";
+                data.results.forEach(observer => {
+                    const li = document.createElement("li");
+                    li.textContent = `${observer.user.login} — ${observer.observation_count} observations`;
+                    listEl.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Observer fetch failed:", error);
+                document.getElementById(listId).innerHTML = "<li>Failed to load data.</li>";
+            }
+        }
+
+        // Run standard calls
+        loadObservationStats(189476, "deer-stats");
+        loadObservers(189476, "deer-list");
+
+        loadObservationStats(120329, "eg-stats");
+        loadObservers(120329, "eg-list");
+    </script>
 
 </body>
