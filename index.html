@@ -107,7 +107,8 @@
 
                 evening.forEach(obs => {
                     if (obs.taxon && obs.taxon.rank === "species") {
-                        const speciesKey = obs.taxon.id + "|" + obs.taxon.name;
+                        const photo = obs.taxon.default_photo?.square_url || "";
+                        const speciesKey = obs.taxon.id + "|" + obs.taxon.name + "|" + photo;
                         const user = obs.user?.login;
                         if (user) {
                             if (!speciesObservers[speciesKey]) {
@@ -120,8 +121,8 @@
 
                 const rankedSpecies = Object.entries(speciesObservers)
                     .map(([key, userSet]) => {
-                        const [id, name] = key.split("|");
-                        return { id, name, count: userSet.size };
+                        const [id, name, photo] = key.split("|");
+                        return { id, name, photo, count: userSet.size };
                     })
                     .sort((a, b) => b.count - a.count)
                     .slice(0, 5); // top 5 species by distinct observer count
@@ -156,13 +157,14 @@
       
       
       <p><strong>${totalObservations}</strong> insect observations<br><strong>${uniqueSpecies}</strong> unique species observed<br> between 7pm–12am on <strong>${date}</strong></p>
-      <p>Top 10 species by number of observers:</p>
+      <p>Top 5 species by number of observers:</p>
       <ul>
         ${rankedSpecies.map(s =>
-            `<li>
-                <i><a href="https://www.inaturalist.org/taxa/${s.id}" target="_blank">${s.name}</a></i> — observed by ${s.count} people
-            </li>`
-        ).join("")}
+                    `<li style="display:flex; align-items:center; margin-bottom:0.5rem;">
+                        <img src="${s.photo}" alt="${s.name}" style="width:40px; height:40px; object-fit:cover; margin-right:0.5rem; border-radius:4px;">
+                        <a href="https://www.inaturalist.org/taxa/${s.id}" target="_blank"><i>${s.name}</i></a> — observed by ${s.count} people
+                    </li>`
+                ).join("")}
       </ul>
       
       <p>Top ${max} observers of ${totalObservations} observations:</p>
